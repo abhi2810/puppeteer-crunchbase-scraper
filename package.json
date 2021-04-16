@@ -1,0 +1,22 @@
+{
+  "name": "puppeteer-crunchbase-scrapper",
+  "version": "1.0.0",
+  "description": "Scrapping Details from Crunchbase",
+  "main": "index.js",
+  "keywords": [
+    "puppeteer"
+  ],
+  "scripts": {
+    "start": "cross-env PUPPETEER_HEADLESS=true node .",
+    "start:nonheadless": "node ."
+  },
+  "author": "Abhi Singh",
+  "license": "ISC",
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "fast-csv": "^4.3.6",
+    "puppeteer": "^8.0.0",
+    "puppeteer-extra": "^3.1.18",
+    "puppeteer-extra-plugin-stealth": "^2.7.6"
+  }
+}
