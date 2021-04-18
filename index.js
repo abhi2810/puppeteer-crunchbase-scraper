@@ -8,7 +8,7 @@ const { format } = require('@fast-csv/format');
 let input = [];
 let output = [];
 let failed = [];
-const headers = ['Company Name', 'URL', 'Funding Name', 'Funding Type', 'Announced Date', 'Money Raised', 'Total Funding Amount', 'Number of Investors', 'Lead Investor', 'Funding Rounds', 'Funding Summary'];
+const headers = ['Entry Name', 'Image URL', 'Return Company Name', 'Funding Type', 'Announced Date', 'Money Raised', 'Money Raised Sanitised', 'Total Funding Raised', 'Total Funding Raised Sanitised', 'Lead Investor', 'Pre-Money Evaluation', 'investors', 'Number of Investors'];
 
 fs.createReadStream(path.resolve(__dirname, 'input.csv'))
     .pipe(csv.parse({ headers: true }))
@@ -22,6 +22,7 @@ puppeteer.use(StealthPlugin())
 
 puppeteer.launch({ headless: process.env.PUPPETEER_HEADLESS ? true : false }).then(async browser => {
     console.log('Running scrapper..')
+    let outputCount = 0;
     for (var k = 0; k < input.length; k++) {
         try {
             const page = await browser.newPage();
@@ -39,13 +40,9 @@ puppeteer.launch({ headless: process.env.PUPPETEER_HEADLESS ? true : false }).th
             const fundingCountElem = await page.$x('//div/field-formatter/a');
             var fundingCount = await fundingCountElem[0].evaluate(e => e.innerText);
             console.log(fundingCount);
+            var imageURL = await page.$eval('.ng-star-inserted > .provide-styling > img', e => e.src);
+            console.log(imageURL);
             const fundingAvailable = fundingCount > 10 ? 10 : fundingCount
-            output.push({
-                'Company Name': input[k]['Name'],
-                'URL': `${url}/company_financials`,
-                'Funding Rounds': fundingCount,
-                'Funding Summary': fundingText
-            });
             for (var i = 1; i <= fundingAvailable; i++) {
                 let fundingDate = await page.$eval(`.full-width:nth-child(5) tbody > .ng-star-inserted:nth-child(${i}) > .ng-star-inserted:nth-child(1)`, e => e.innerText);
                 let fundingName = await page.$eval(`.full-width:nth-child(5) tbody > .ng-star-inserted:nth-child(${i}) > .ng-star-inserted:nth-child(2)`, e => e.innerText);
@@ -55,17 +52,23 @@ puppeteer.launch({ headless: process.env.PUPPETEER_HEADLESS ? true : false }).th
                 let leadInvestor = await page.$eval(`.full-width:nth-child(5) tbody > .ng-star-inserted:nth-child(${i}) > .ng-star-inserted:nth-child(5)`, e => e.innerText);
                 console.log(`${fundingDate} ${fundingName} ${fundingType} ${numberOfInvestors} ${moneyRaised} ${leadInvestor}`);
                 output.push({
-                    'Funding Name': fundingName,
+                    'Entry Name': input[k]['Name'],
+                    'Image URL': `=Image("${imageURL}")`,
+                    'Return Company Name': fundingName.split('-')[1],
                     'Funding Type': fundingType,
                     'Announced Date': fundingDate,
                     'Money Raised': moneyRaised,
-                    'Total Funding Amount': totalFund,
+                    'Money Raised Sanitised': '',
+                    'Total Funding Raised': totalFund,
+                    'Total Funding Raised Sanitised': '',
+                    'Lead Investor': leadInvestor,
+                    'Pre-Money Evaluation': '',
+                    'investors': '',
                     'Number of Investors': numberOfInvestors,
-                    'Lead Investor': leadInvestor
                 });
             }
-            output.push({});
             await page.close();
+            outputCount++;
         } catch (e) {
             failed.push(input[k]);
             console.log(`There was an error while serching for this Organisation: ${input[k]['Name']}`);
@@ -73,9 +76,8 @@ puppeteer.launch({ headless: process.env.PUPPETEER_HEADLESS ? true : false }).th
         }
     }
     await browser.close();
-    // const csvStream = format({ headers: headers });
-    // csvStream.pipe(outputFileStream);
     csv.write(output, { headers: headers }).pipe(outputFileStream);
     csv.write(failed, { headers: true }).pipe(failedFileStream);
+    console.log(`Output results: ${outputCount}, Failed results: ${failed.length}`);
     console.log(`All done, check the CSV files. ✨`);
 })
